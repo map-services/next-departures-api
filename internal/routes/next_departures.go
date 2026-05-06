@@ -24,16 +24,16 @@ func NextDepartures(client internal.SiriClient) func(c *gin.Context) {
 
 		switch statusCode {
 		case http.StatusOK:
-			departures := make([]models.NextDeparture, 0)
+			results := make([]models.NextDeparture, 0)
 			if len(siri.ServiceDelivery.StopMonitoringDelivery) == 0 {
 				c.JSON(http.StatusOK, models.NextDepartureResponse{
-					Results:     departures,
+					Results:     results,
 					Attribution: internal.ATTRIBUTION,
 				})
 				return
 			}
 			for _, visit := range siri.ServiceDelivery.StopMonitoringDelivery[0].MonitoredStopVisit {
-				departures = append(departures, models.NextDeparture{
+				results = append(results, models.NextDeparture{
 					LineName:            visit.MonitoredVehicleJourney.PublishedLineName,
 					Destination:         visit.MonitoredVehicleJourney.DirectionName,
 					OperatorRef:         visit.MonitoredVehicleJourney.OperatorRef,
@@ -43,7 +43,7 @@ func NextDepartures(client internal.SiriClient) func(c *gin.Context) {
 			}
 
 			c.JSON(http.StatusOK, models.NextDepartureResponse{
-				Results:     departures,
+				Results:     results,
 				Attribution: internal.ATTRIBUTION,
 			})
 
