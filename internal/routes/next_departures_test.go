@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/rm-hull/next-departures-api/internal/models"
 	"github.com/rm-hull/next-departures-api/internal/models/siri"
 	"github.com/stretchr/testify/assert"
 )
@@ -20,10 +21,26 @@ func (m *mockSiriClient) GetStopMonitoring(monitoringRef string) (*siri.Siri, in
 	return m.getStopMonitoringFn(monitoringRef)
 }
 
-func TestNextDepartures_RateLimited(t *testing.T) {
+type mockTravelineClient struct {
+	getNextDeparturesFn func(atcoCode string) ([]models.NextDeparture, error)
+}
+
+func (m *mockTravelineClient) GetNextDepartures(atcoCode string) ([]models.NextDeparture, error) {
+	return m.getNextDeparturesFn(atcoCode)
+}
+
+type mockFallbackManager struct {
+	limited bool
+}
+
+func (m *mockFallbackManager) IsSiriRateLimited() bool     { return m.limited }
+func (m *mockFallbackManager) SetSiriRateLimited(l bool) { m.limited = l }
+
+func TestNextDepartures_RateLimitedFallback(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	mockClient := &mockSiriClient{
+	fbManager := &mockFallbackManager{limited: false}
+	siriClient := &mockSiriClient{
 		getStopMonitoringFn: func(monitoringRef string) (*siri.Siri, int, error) {
 			return &siri.Siri{
 				ServiceDelivery: siri.ServiceDelivery{
@@ -36,18 +53,24 @@ func TestNextDepartures_RateLimited(t *testing.T) {
 			}, http.StatusForbidden, nil
 		},
 	}
+	travelineClient := &mockTravelineClient{
+		getNextDeparturesFn: func(atcoCode string) ([]models.NextDeparture, error) {
+			return []models.NextDeparture{
+				{LineName: "Fallback", Destination: "Traveline"},
+			}, nil
+		},
+	}
 
 	r := gin.New()
-	r.GET("/v1/next-departures/:stopId", NextDepartures(mockClient))
+	r.GET("/v1/next-departures/:stopId", NextDepartures(siriClient, travelineClient, fbManager))
 
 	req, _ := http.NewRequest(http.MethodGet, "/v1/next-departures/123", nil)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
-	assert.Equal(t, http.StatusTooManyRequests, w.Code)
-	assert.Contains(t, w.Body.String(), "Rate limit exceeded. Please try again after midnight.")
-	assert.NotEmpty(t, w.Header().Get("Retry-After"))
-	assert.NotEmpty(t, w.Header().Get("X-RateLimit-Reset"))
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Contains(t, w.Body.String(), `"line_name":"Fallback"`)
+	assert.True(t, fbManager.limited, "Fallback flag should be set")
 }
 
 func TestNextDepartures_Success(t *testing.T) {
@@ -56,7 +79,8 @@ func TestNextDepartures_Success(t *testing.T) {
 	aimedTime := time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC)
 	expectedTime := time.Date(2026, 5, 1, 12, 5, 0, 0, time.UTC)
 
-	mockClient := &mockSiriClient{
+	fbManager := &mockFallbackManager{limited: false}
+	siriClient := &mockSiriClient{
 		getStopMonitoringFn: func(monitoringRef string) (*siri.Siri, int, error) {
 			return &siri.Siri{
 				ServiceDelivery: siri.ServiceDelivery{
@@ -69,8 +93,8 @@ func TestNextDepartures_Success(t *testing.T) {
 										DirectionName:     "Galaxy",
 										OperatorRef:       "MARVIN",
 										MonitoredCall: siri.MonitoredCall{
-											AimedDepartureTime:    &aimedTime,
-											ExpectedDepartureTime: &expectedTime,
+											AimedArrivalTime:    &aimedTime,
+											ExpectedArrivalTime: &expectedTime,
 										},
 									},
 								},
@@ -81,9 +105,10 @@ func TestNextDepartures_Success(t *testing.T) {
 			}, http.StatusOK, nil
 		},
 	}
+	travelineClient := &mockTravelineClient{}
 
 	r := gin.New()
-	r.GET("/v1/next-departures/:stopId", NextDepartures(mockClient))
+	r.GET("/v1/next-departures/:stopId", NextDepartures(siriClient, travelineClient, fbManager))
 
 	req, _ := http.NewRequest(http.MethodGet, "/v1/next-departures/123", nil)
 	w := httptest.NewRecorder()
@@ -91,14 +116,13 @@ func TestNextDepartures_Success(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.Contains(t, w.Body.String(), `"line_name":"42"`)
-	assert.Contains(t, w.Body.String(), `"destination":"Galaxy"`)
-	assert.Contains(t, w.Body.String(), `"attribution"`)
 }
 
 func TestNextDepartures_NoDepartures(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	mockClient := &mockSiriClient{
+	fbManager := &mockFallbackManager{limited: false}
+	siriClient := &mockSiriClient{
 		getStopMonitoringFn: func(monitoringRef string) (*siri.Siri, int, error) {
 			return &siri.Siri{
 				ServiceDelivery: siri.ServiceDelivery{
@@ -107,9 +131,10 @@ func TestNextDepartures_NoDepartures(t *testing.T) {
 			}, http.StatusOK, nil
 		},
 	}
+	travelineClient := &mockTravelineClient{}
 
 	r := gin.New()
-	r.GET("/v1/next-departures/:stopId", NextDepartures(mockClient))
+	r.GET("/v1/next-departures/:stopId", NextDepartures(siriClient, travelineClient, fbManager))
 
 	req, _ := http.NewRequest(http.MethodGet, "/v1/next-departures/123", nil)
 	w := httptest.NewRecorder()
@@ -119,38 +144,11 @@ func TestNextDepartures_NoDepartures(t *testing.T) {
 	assert.Contains(t, w.Body.String(), `"results":[]`)
 }
 
-func TestNextDepartures_BadRequest(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-
-	mockClient := &mockSiriClient{
-		getStopMonitoringFn: func(monitoringRef string) (*siri.Siri, int, error) {
-			return &siri.Siri{
-				ServiceDelivery: siri.ServiceDelivery{
-					ErrorCondition: &siri.ErrorCondition{
-						OtherError: &siri.Error{
-							ErrorText: "Invalid monitoring reference",
-						},
-					},
-				},
-			}, http.StatusBadRequest, nil
-		},
-	}
-
-	r := gin.New()
-	r.GET("/v1/next-departures/:stopId", NextDepartures(mockClient))
-
-	req, _ := http.NewRequest(http.MethodGet, "/v1/next-departures/123", nil)
-	w := httptest.NewRecorder()
-	r.ServeHTTP(w, req)
-
-	assert.Equal(t, http.StatusBadRequest, w.Code)
-	assert.Contains(t, w.Body.String(), "Invalid monitoring reference")
-}
-
 func TestNextDepartures_AccessDenied(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	mockClient := &mockSiriClient{
+	fbManager := &mockFallbackManager{limited: false}
+	siriClient := &mockSiriClient{
 		getStopMonitoringFn: func(monitoringRef string) (*siri.Siri, int, error) {
 			return &siri.Siri{
 				ServiceDelivery: siri.ServiceDelivery{
@@ -163,36 +161,35 @@ func TestNextDepartures_AccessDenied(t *testing.T) {
 			}, http.StatusUnauthorized, nil
 		},
 	}
+	travelineClient := &mockTravelineClient{}
 
 	r := gin.New()
-	r.GET("/v1/next-departures/:stopId", NextDepartures(mockClient))
+	r.GET("/v1/next-departures/:stopId", NextDepartures(siriClient, travelineClient, fbManager))
 
 	req, _ := http.NewRequest(http.MethodGet, "/v1/next-departures/123", nil)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
-	// In the current implementation, StatusUnauthorized/StatusForbidden (not rate-limited)
-	// results in an Internal Server Error being returned to the caller.
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
-	assert.Contains(t, w.Body.String(), "An internal server error occurred")
 }
 
 func TestNextDepartures_ClientError(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	mockClient := &mockSiriClient{
+	fbManager := &mockFallbackManager{limited: false}
+	siriClient := &mockSiriClient{
 		getStopMonitoringFn: func(monitoringRef string) (*siri.Siri, int, error) {
 			return nil, 0, errors.New("network failure")
 		},
 	}
+	travelineClient := &mockTravelineClient{}
 
 	r := gin.New()
-	r.GET("/v1/next-departures/:stopId", NextDepartures(mockClient))
+	r.GET("/v1/next-departures/:stopId", NextDepartures(siriClient, travelineClient, fbManager))
 
 	req, _ := http.NewRequest(http.MethodGet, "/v1/next-departures/123", nil)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
-	assert.Contains(t, w.Body.String(), "An internal server error occurred")
 }

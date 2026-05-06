@@ -8,10 +8,11 @@ import (
 )
 
 const CRON_SCHEDULE_NAPTAN = "@every 19h"
+const CRON_SCHEDULE_MIDNIGHT = "0 0 * * *"
 
-func StartCron(repo NaptanRepository) (*cron.Cron, error) {
+func StartCron(repo NaptanRepository, fbManager FallbackManager) (*cron.Cron, error) {
 
-	log.Printf("Starting CRON job to update NaPTAN datasets (schedule: %s)", CRON_SCHEDULE_NAPTAN)
+	log.Printf("Starting CRON jobs: NaPTAN updates (schedule: %s), Fallback reset (schedule: %s)", CRON_SCHEDULE_NAPTAN, CRON_SCHEDULE_MIDNIGHT)
 
 	c := cron.New()
 	if _, err := c.AddFunc(CRON_SCHEDULE_NAPTAN, func() {
@@ -19,6 +20,13 @@ func StartCron(repo NaptanRepository) (*cron.Cron, error) {
 		if err != nil {
 			log.Printf("Error importing download NaPTAN dataset: %v", err)
 		}
+	}); err != nil {
+		return nil, err
+	}
+
+	if _, err := c.AddFunc(CRON_SCHEDULE_MIDNIGHT, func() {
+		log.Println("Resetting SIRI rate limit fallback flag")
+		fbManager.SetSiriRateLimited(false)
 	}); err != nil {
 		return nil, err
 	}
