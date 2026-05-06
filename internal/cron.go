@@ -15,7 +15,7 @@ func StartCron(repo NaptanRepository) (*cron.Cron, error) {
 
 	c := cron.New()
 	if _, err := c.AddFunc(CRON_SCHEDULE_NAPTAN, func() {
-		err := TransientDownload(models.NAPTAN_CSV_URL, repo.ImportCSV)
+		err := TransientDownload(models.NAPTAN_CSV_URL, repo.ImportCSV(0))
 		if err != nil {
 			log.Printf("Error importing download NaPTAN dataset: %v", err)
 		}
