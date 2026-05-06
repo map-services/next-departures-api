@@ -19,14 +19,19 @@ type TravelineClient interface {
 type travelineClient struct {
 	baseURL    string
 	httpClient *http.Client
+	timeZone   *time.Location
 }
 
 func NewTravelineClient() TravelineClient {
+	timeZone, err := time.LoadLocation("Europe/London")
+	if err != nil {
+		timeZone = time.UTC
+	}
+
 	return &travelineClient{
-		baseURL: "https://www.traveline.info/stops/",
-		httpClient: &http.Client{
-			Timeout: 10 * time.Second,
-		},
+		baseURL:    "https://www.traveline.info/stops/",
+		httpClient: &http.Client{Timeout: 10 * time.Second},
+		timeZone:   timeZone,
 	}
 }
 
@@ -55,11 +60,8 @@ func (c *travelineClient) GetNextDepartures(atcoCode string) ([]models.NextDepar
 	}
 
 	results := []models.NextDeparture{}
-	london, err := time.LoadLocation("Europe/London")
-	if err != nil {
-		london = time.UTC
-	}
-	now := time.Now().In(london)
+
+	now := time.Now().In(c.timeZone)
 
 	doc.Find(".departure-board__item").Each(func(i int, s *goquery.Selection) {
 		lineName := strings.TrimSpace(s.Find(".single-visit__name").Text())
@@ -74,7 +76,7 @@ func (c *travelineClient) GetNextDepartures(atcoCode string) ([]models.NextDepar
 		srText := s.Find(".sr-only").First().Text()
 		isLive := strings.Contains(srText, "Live")
 
-		departureTime := c.parseTime(timeStr, now, london)
+		departureTime := c.parseTime(timeStr, now, c.timeZone)
 		if departureTime == nil {
 			return
 		}
