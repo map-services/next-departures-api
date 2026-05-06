@@ -27,7 +27,7 @@ var searchNaptanSQL string
 var lastUpdatedSQL string
 
 type NaptanRepository interface {
-	ImportCSV(tmpfile string, header http.Header) error
+	ImportCSV(updateInterval int) func(string, http.Header) error
 	Search(boundingBox []float64) ([]models.SearchResult, error)
 	LastUpdated() (*time.Time, error)
 	Close() error
@@ -105,64 +105,66 @@ func parseTimeString(value string) (*time.Time, error) {
 	return nil, fmt.Errorf("unsupported time format: %s", value)
 }
 
-func (repo *sqliteRepository) ImportCSV(tmpfile string, header http.Header) error {
-	defer repo.metrics.Record(time.Now(), "importCSV")
+func (repo *sqliteRepository) ImportCSV(updateInterval int) func(string, http.Header) error {
+	return func(tmpfile string, header http.Header) error {
+		defer repo.metrics.Record(time.Now(), "importCSV")
 
-	tx, err := repo.db.Begin()
-	if err != nil {
-		return fmt.Errorf("failed to begin transaction: %w", err)
-	}
-	defer func() {
+		tx, err := repo.db.Begin()
 		if err != nil {
-			if rbErr := tx.Rollback(); rbErr != nil {
-				log.Printf("error rolling back transaction: %v", rbErr)
+			return fmt.Errorf("failed to begin transaction: %w", err)
+		}
+		defer func() {
+			if err != nil {
+				if rbErr := tx.Rollback(); rbErr != nil {
+					log.Printf("error rolling back transaction: %v", rbErr)
+				}
+			}
+		}()
+
+		stmt, err := tx.Prepare(insertNaptanSQL)
+		if err != nil {
+			return fmt.Errorf("failed to prepare statement: %w", err)
+		}
+		defer func() {
+			if err := stmt.Close(); err != nil {
+				log.Printf("failed to close statement: %v", err)
+			}
+		}()
+
+		reader, err := os.Open(tmpfile)
+		defer func() {
+			if err := reader.Close(); err != nil {
+				log.Printf("failed to close file reader: %v", err)
+			}
+		}()
+		if err != nil {
+			return fmt.Errorf("error opening file: %v", err)
+		}
+
+		count := 0
+		for result := range ParseCSV(reader, true, models.FromTuple) {
+			if result.Error != nil {
+				log.Printf("error parsing CSV record: %v", result.Error)
+				continue
+			}
+			count++
+			if updateInterval > 0 && count%updateInterval == 0 {
+				log.Printf("Processed %d records", result.LineNum)
+			}
+
+			_, err = stmt.Exec(result.Value.ToTuple()...)
+			if err != nil {
+				return fmt.Errorf("failed to execute individual insert: %w", err)
 			}
 		}
-	}()
+		log.Printf("Completed import: %d records processed", count)
 
-	stmt, err := tx.Prepare(insertNaptanSQL)
-	if err != nil {
-		return fmt.Errorf("failed to prepare statement: %w", err)
+		if err = tx.Commit(); err != nil {
+			return fmt.Errorf("failed to commit transaction: %w", err)
+		}
+
+		return nil
 	}
-	defer func() {
-		if err := stmt.Close(); err != nil {
-			log.Printf("failed to close statement: %v", err)
-		}
-	}()
-
-	reader, err := os.Open(tmpfile)
-	defer func() {
-		if err := reader.Close(); err != nil {
-			log.Printf("failed to close file reader: %v", err)
-		}
-	}()
-	if err != nil {
-		return fmt.Errorf("error opening file: %v", err)
-	}
-
-	count := 0
-	for result := range ParseCSV(reader, true, models.FromTuple) {
-		if result.Error != nil {
-			log.Printf("error parsing CSV record: %v", result.Error)
-			continue
-		}
-		count++
-		if count%421 == 0 {
-			log.Printf("Processed %d records", result.LineNum)
-		}
-
-		_, err = stmt.Exec(result.Value.ToTuple()...)
-		if err != nil {
-			return fmt.Errorf("failed to execute individual insert: %w", err)
-		}
-	}
-	log.Printf("Completed import: %d records processed", count)
-
-	if err = tx.Commit(); err != nil {
-		return fmt.Errorf("failed to commit transaction: %w", err)
-	}
-
-	return nil
 }
 
 func (repo *sqliteRepository) Search(boundingBox []float64) ([]models.SearchResult, error) {

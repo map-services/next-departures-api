@@ -20,7 +20,7 @@ func Import(dbPath string) error {
 		}
 	}()
 
-	err = internal.TransientDownload(models.NAPTAN_CSV_URL, repo.ImportCSV)
+	err = internal.TransientDownload(models.NAPTAN_CSV_URL, repo.ImportCSV(421))
 	if err != nil {
 		return fmt.Errorf("failed to download NaPTAN dataset: %w", err)
 	}
