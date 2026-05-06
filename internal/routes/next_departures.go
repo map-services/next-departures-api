@@ -34,11 +34,11 @@ func NextDepartures(client internal.SiriClient) func(c *gin.Context) {
 			}
 			for _, visit := range siri.ServiceDelivery.StopMonitoringDelivery[0].MonitoredStopVisit {
 				departures = append(departures, models.NextDeparture{
-					LineName:              visit.MonitoredVehicleJourney.PublishedLineName,
-					Destination:           visit.MonitoredVehicleJourney.DirectionName,
-					OperatorRef:           visit.MonitoredVehicleJourney.OperatorRef,
-					AimedDepartureTime:    visit.MonitoredVehicleJourney.MonitoredCall.AimedDepartureTime,
-					ExpectedDepartureTime: visit.MonitoredVehicleJourney.MonitoredCall.ExpectedDepartureTime,
+					LineName:            visit.MonitoredVehicleJourney.PublishedLineName,
+					Destination:         visit.MonitoredVehicleJourney.DirectionName,
+					OperatorRef:         visit.MonitoredVehicleJourney.OperatorRef,
+					AimedArrivalTime:    visit.MonitoredVehicleJourney.MonitoredCall.AimedArrivalTime,
+					ExpectedArrivalTime: visit.MonitoredVehicleJourney.MonitoredCall.ExpectedArrivalTime,
 				})
 			}
 
