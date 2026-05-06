@@ -132,14 +132,14 @@ func (repo *sqliteRepository) ImportCSV(updateInterval int) func(string, http.He
 		}()
 
 		reader, err := os.Open(tmpfile)
+		if err != nil {
+			return fmt.Errorf("error opening file: %v", err)
+		}
 		defer func() {
 			if err := reader.Close(); err != nil {
 				log.Printf("failed to close file reader: %v", err)
 			}
 		}()
-		if err != nil {
-			return fmt.Errorf("error opening file: %v", err)
-		}
 
 		count := 0
 		for result := range ParseCSV(reader, true, models.FromTuple) {
