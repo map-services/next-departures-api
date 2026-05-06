@@ -3,21 +3,25 @@ package routes
 import (
 	"log"
 	"net/http"
-	"strconv"
 	"strings"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/rm-hull/next-departures-api/internal"
 	"github.com/rm-hull/next-departures-api/internal/models"
 )
 
-func NextDepartures(client internal.SiriClient) func(c *gin.Context) {
+func NextDepartures(siri internal.SiriClient, traveline internal.TravelineClient, fbManager internal.FallbackManager) func(c *gin.Context) {
 	return func(c *gin.Context) {
 		stopId := c.Param("stopId")
-		siri, statusCode, err := client.GetStopMonitoring(stopId)
+
+		if fbManager.IsSiriRateLimited() {
+			fetchFromTraveline(c, traveline, stopId)
+			return
+		}
+
+		siriResp, statusCode, err := siri.GetStopMonitoring(stopId)
 		if err != nil {
-			log.Printf("error while fetching next departures: %v", err)
+			log.Printf("error while fetching next departures from SIRI: %v", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "An internal server error occurred"})
 			return
 		}
@@ -25,14 +29,14 @@ func NextDepartures(client internal.SiriClient) func(c *gin.Context) {
 		switch statusCode {
 		case http.StatusOK:
 			results := make([]models.NextDeparture, 0)
-			if len(siri.ServiceDelivery.StopMonitoringDelivery) == 0 {
+			if len(siriResp.ServiceDelivery.StopMonitoringDelivery) == 0 {
 				c.JSON(http.StatusOK, models.NextDepartureResponse{
 					Results:     results,
 					Attribution: internal.ATTRIBUTION,
 				})
 				return
 			}
-			for _, visit := range siri.ServiceDelivery.StopMonitoringDelivery[0].MonitoredStopVisit {
+			for _, visit := range siriResp.ServiceDelivery.StopMonitoringDelivery[0].MonitoredStopVisit {
 				results = append(results, models.NextDeparture{
 					LineName:            visit.MonitoredVehicleJourney.PublishedLineName,
 					Destination:         visit.MonitoredVehicleJourney.DirectionName,
@@ -47,26 +51,23 @@ func NextDepartures(client internal.SiriClient) func(c *gin.Context) {
 				Attribution: internal.ATTRIBUTION,
 			})
 
-		case http.StatusBadRequest:
-			errMsg := "Bad request to SIRI API"
-			if siri.ServiceDelivery.ErrorCondition != nil && siri.ServiceDelivery.ErrorCondition.OtherError != nil {
-				errMsg = siri.ServiceDelivery.ErrorCondition.OtherError.ErrorText
-			}
-			c.JSON(statusCode, gin.H{"error": errMsg})
-
-		case http.StatusForbidden, http.StatusUnauthorized:
+		case http.StatusForbidden, http.StatusUnauthorized, http.StatusTooManyRequests:
 			errMsg := "Access denied"
-			if siri.ServiceDelivery.ErrorCondition != nil && siri.ServiceDelivery.ErrorCondition.AccessNotAllowedError != nil {
-				errMsg = siri.ServiceDelivery.ErrorCondition.AccessNotAllowedError.ErrorText
+			if siriResp.ServiceDelivery.ErrorCondition != nil {
+				if siriResp.ServiceDelivery.ErrorCondition.AccessNotAllowedError != nil {
+					errMsg = siriResp.ServiceDelivery.ErrorCondition.AccessNotAllowedError.ErrorText
+				} else if siriResp.ServiceDelivery.ErrorCondition.OtherError != nil {
+					errMsg = siriResp.ServiceDelivery.ErrorCondition.OtherError.ErrorText
+				}
 			}
 
-			if statusCode == http.StatusForbidden && strings.Contains(errMsg, "Usage limits are exceeded") {
-				now := time.Now().UTC()
-				midnight := time.Date(now.Year(), now.Month(), now.Day()+1, 0, 0, 0, 0, time.UTC)
-				retryAfter := int(midnight.Sub(now).Seconds())
-				c.Header("Retry-After", strconv.Itoa(retryAfter))
-				c.Header("X-RateLimit-Reset", midnight.Format(time.RFC3339))
-				c.JSON(http.StatusTooManyRequests, gin.H{"error": "Rate limit exceeded. Please try again after midnight."})
+			isRateLimit := statusCode == http.StatusTooManyRequests ||
+				(statusCode == http.StatusForbidden && strings.Contains(errMsg, "Usage limits are exceeded"))
+
+			if isRateLimit {
+				log.Printf("SIRI rate limit exceeded, switching to Traveline fallback for stop %s", stopId)
+				fbManager.SetSiriRateLimited(true)
+				fetchFromTraveline(c, traveline, stopId)
 				return
 			}
 
@@ -78,4 +79,18 @@ func NextDepartures(client internal.SiriClient) func(c *gin.Context) {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "An internal server error occurred"})
 		}
 	}
+}
+
+func fetchFromTraveline(c *gin.Context, client internal.TravelineClient, stopId string) {
+	results, err := client.GetNextDepartures(stopId)
+	if err != nil {
+		log.Printf("error while fetching next departures from Traveline: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "An internal server error occurred"})
+		return
+	}
+
+	c.JSON(http.StatusOK, models.NextDepartureResponse{
+		Results:     results,
+		Attribution: internal.ATTRIBUTION,
+	})
 }

@@ -33,7 +33,8 @@ func ApiServer(dbPath string, port int, debug bool) error {
 		}
 	}()
 
-	scheduler, err := internal.StartCron(repo)
+	fbManager := internal.NewFallbackManager()
+	scheduler, err := internal.StartCron(repo, fbManager)
 	if err != nil {
 		return fmt.Errorf("failed to start CRON jobs: %w", err)
 	}
@@ -42,6 +43,7 @@ func ApiServer(dbPath string, port int, debug bool) error {
 	appId := os.Getenv("TRANSPORTAPI_APP_ID")
 	appKey := os.Getenv("TRANSPORTAPI_APP_KEY")
 	siriClient := internal.NewSiriClient(appId, appKey, prometheus.DefaultRegisterer)
+	travelineClient := internal.NewTravelineClient()
 
 	r := gin.New()
 
@@ -81,7 +83,7 @@ func ApiServer(dbPath string, port int, debug bool) error {
 
 	v1 := r.Group("/v1/next-departures")
 	v1.GET("/search", routes.Search(repo))
-	v1.GET("/:stopId", routes.NextDepartures(siriClient))
+	v1.GET("/:stopId", routes.NextDepartures(siriClient, travelineClient, fbManager))
 
 	refdata := v1.Group("/refdata")
 	refdata.GET("/stop-types", routes.StopTypes)
