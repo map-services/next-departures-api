@@ -24,26 +24,26 @@ func NextDepartures(client internal.SiriClient) func(c *gin.Context) {
 
 		switch statusCode {
 		case http.StatusOK:
-			departures := make([]models.NextDeparture, 0)
+			results := make([]models.NextDeparture, 0)
 			if len(siri.ServiceDelivery.StopMonitoringDelivery) == 0 {
 				c.JSON(http.StatusOK, models.NextDepartureResponse{
-					Results:     departures,
+					Results:     results,
 					Attribution: internal.ATTRIBUTION,
 				})
 				return
 			}
 			for _, visit := range siri.ServiceDelivery.StopMonitoringDelivery[0].MonitoredStopVisit {
-				departures = append(departures, models.NextDeparture{
-					LineName:              visit.MonitoredVehicleJourney.PublishedLineName,
-					Destination:           visit.MonitoredVehicleJourney.DirectionName,
-					OperatorRef:           visit.MonitoredVehicleJourney.OperatorRef,
-					AimedDepartureTime:    visit.MonitoredVehicleJourney.MonitoredCall.AimedDepartureTime,
-					ExpectedDepartureTime: visit.MonitoredVehicleJourney.MonitoredCall.ExpectedDepartureTime,
+				results = append(results, models.NextDeparture{
+					LineName:            visit.MonitoredVehicleJourney.PublishedLineName,
+					Destination:         visit.MonitoredVehicleJourney.DirectionName,
+					OperatorRef:         visit.MonitoredVehicleJourney.OperatorRef,
+					AimedArrivalTime:    visit.MonitoredVehicleJourney.MonitoredCall.AimedArrivalTime,
+					ExpectedArrivalTime: visit.MonitoredVehicleJourney.MonitoredCall.ExpectedArrivalTime,
 				})
 			}
 
 			c.JSON(http.StatusOK, models.NextDepartureResponse{
-				Results:     departures,
+				Results:     results,
 				Attribution: internal.ATTRIBUTION,
 			})
 
