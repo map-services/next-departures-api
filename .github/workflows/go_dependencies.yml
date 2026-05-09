@@ -39,6 +39,7 @@ jobs:
       - name: Update dependencies
         id: update
         run: |
+          set -eo pipefail
           go env GOPROXY
           go get -u ./... 2>&1 | tee /tmp/go-get-output.txt
           go mod tidy
