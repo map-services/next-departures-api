@@ -1,0 +1,58 @@
+name: Update Go dependencies
+on:
+  schedule:
+    - cron: "0 0 * * 1" # Every Monday at 00:00 UTC
+  workflow_dispatch:
+
+jobs:
+  update-deps:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Generate token
+        id: generate_token
+        uses: tibdex/github-app-token@v2
+        with:
+          app_id: ${{ secrets.APP_ID }}
+          private_key: ${{ secrets.APP_PRIVATE_KEY }}
+
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ steps.generate_token.outputs.token }}
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+
+      - name: Update dependencies
+        id: update
+        run: |
+          go get -u ./... 2>&1 | tee /tmp/go-get-output.txt
+          go mod tidy
+
+          # Build a summary of what changed in go.mod
+          CHANGES=$(git diff go.mod | grep '^[+-]' | grep -v '^[+-][+-][+-]' | grep -v '^[+-]module' | grep -v '^[+-]go ')
+          echo "CHANGES<<EOF" >> $GITHUB_OUTPUT
+          echo "$CHANGES" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ steps.generate_token.outputs.token }}
+          branch: chore/update-go-deps
+          commit-message: "chore: go get -u && go mod tidy"
+          title: "chore: update Go dependencies"
+          body: |
+            ## Dependency Updates
+
+            Automated update via `go get -u ./... && go mod tidy`.
+
+            ### Changes to go.mod
+            ```diff
+            ${{ steps.update.outputs.CHANGES }}
+            ```
+          labels: dependencies
