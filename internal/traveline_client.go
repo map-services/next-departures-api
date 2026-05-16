@@ -2,6 +2,7 @@ package internal
 
 import (
 	"fmt"
+	"io"
 	"net/http"
 	"regexp"
 	"strconv"
@@ -54,7 +55,7 @@ func (c *travelineClient) GetNextDepartures(atcoCode string) ([]models.NextDepar
 		return nil, fmt.Errorf("traveline returned unexpected status: %d", resp.StatusCode)
 	}
 
-	doc, err := goquery.NewDocumentFromReader(resp.Body)
+	doc, err := goquery.NewDocumentFromReader(io.LimitReader(resp.Body, 1<<20)) // Limit to 1MB
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse traveline page: %w", err)
 	}
