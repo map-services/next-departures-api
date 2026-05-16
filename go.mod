@@ -1,4 +1,4 @@
-module github.com/rm-hull/next-departures-api
+module github.com/map-services/next-departures-api
 
 go 1.26
 

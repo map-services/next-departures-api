@@ -11,7 +11,7 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/rm-hull/godx"
 
-	"github.com/rm-hull/next-departures-api/internal"
+	"github.com/map-services/next-departures-api/internal"
 )
 
 // bootstrap initialises shared resources used by both the API server and import

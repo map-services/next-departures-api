@@ -8,8 +8,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/rm-hull/next-departures-api/internal"
-	"github.com/rm-hull/next-departures-api/internal/models"
+	"github.com/map-services/next-departures-api/internal"
+	"github.com/map-services/next-departures-api/internal/models"
 
 	"github.com/gin-gonic/gin"
 )

@@ -3,7 +3,7 @@ package internal
 import (
 	"log"
 
-	"github.com/rm-hull/next-departures-api/internal/models"
+	"github.com/map-services/next-departures-api/internal/models"
 	"github.com/robfig/cron/v3"
 )
 

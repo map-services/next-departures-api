@@ -7,9 +7,9 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/map-services/next-departures-api/internal/metrics"
+	"github.com/map-services/next-departures-api/internal/models/siri"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/rm-hull/next-departures-api/internal/metrics"
-	"github.com/rm-hull/next-departures-api/internal/models/siri"
 )
 
 type SiriClient interface {

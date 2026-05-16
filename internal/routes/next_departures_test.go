@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/rm-hull/next-departures-api/internal/models"
-	"github.com/rm-hull/next-departures-api/internal/models/siri"
+	"github.com/map-services/next-departures-api/internal/models"
+	"github.com/map-services/next-departures-api/internal/models/siri"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -33,7 +33,7 @@ type mockFallbackManager struct {
 	limited bool
 }
 
-func (m *mockFallbackManager) IsSiriRateLimited() bool     { return m.limited }
+func (m *mockFallbackManager) IsSiriRateLimited() bool   { return m.limited }
 func (m *mockFallbackManager) SetSiriRateLimited(l bool) { m.limited = l }
 
 func TestNextDepartures_RateLimitedFallback(t *testing.T) {

@@ -11,10 +11,10 @@ import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-contrib/pprof"
 	"github.com/gin-gonic/gin"
+	"github.com/map-services/next-departures-api/internal"
+	"github.com/map-services/next-departures-api/internal/routes"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/rm-hull/next-departures-api/internal"
-	"github.com/rm-hull/next-departures-api/internal/routes"
 
 	healthcheck "github.com/tavsec/gin-healthcheck"
 	"github.com/tavsec/gin-healthcheck/checks"

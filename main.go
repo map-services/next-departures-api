@@ -3,7 +3,7 @@ package main
 import (
 	"log"
 
-	"github.com/rm-hull/next-departures-api/cmd"
+	"github.com/map-services/next-departures-api/cmd"
 
 	"github.com/spf13/cobra"
 )

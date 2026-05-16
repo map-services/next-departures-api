@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
-	"github.com/rm-hull/next-departures-api/internal/models"
+	"github.com/map-services/next-departures-api/internal/models"
 )
 
 type TravelineClient interface {
