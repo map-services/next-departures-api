@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"log"
 
@@ -20,7 +21,7 @@ func Import(dbPath string) error {
 		}
 	}()
 
-	err = internal.TransientDownload(models.NAPTAN_CSV_URL, repo.ImportCSV(421))
+	err = internal.TransientDownload(models.NAPTAN_CSV_URL, repo.ImportCSV(context.Background(), 421))
 	if err != nil {
 		return fmt.Errorf("failed to download NaPTAN dataset: %w", err)
 	}

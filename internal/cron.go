@@ -1,8 +1,8 @@
 package internal
 
 import (
+	"context"
 	"log"
-
 	"github.com/map-services/next-departures-api/internal/models"
 	"github.com/robfig/cron/v3"
 )
@@ -16,7 +16,7 @@ func StartCron(repo NaptanRepository, fbManager FallbackManager) (*cron.Cron, er
 
 	c := cron.New()
 	if _, err := c.AddFunc(CRON_SCHEDULE_NAPTAN, func() {
-		err := TransientDownload(models.NAPTAN_CSV_URL, repo.ImportCSV(0))
+		err := TransientDownload(models.NAPTAN_CSV_URL, repo.ImportCSV(context.Background(), 0))
 		if err != nil {
 			log.Printf("Error importing download NaPTAN dataset: %v", err)
 		}

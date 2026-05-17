@@ -24,7 +24,7 @@ func Search(repo internal.NaptanRepository) func(c *gin.Context) {
 			return
 		}
 
-		results, err := repo.Search(bbox)
+		results, err := repo.Search(c.Request.Context(), bbox)
 
 		if err != nil {
 			log.Printf("error while fetching next departures: %v", err)
@@ -32,7 +32,7 @@ func Search(repo internal.NaptanRepository) func(c *gin.Context) {
 			return
 		}
 
-		lastUpdated, err := repo.LastUpdated()
+		lastUpdated, err := repo.LastUpdated(c.Request.Context())
 		if err != nil {
 			log.Printf("error while fetching last updated time: %v", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "An internal server error occurred"})
