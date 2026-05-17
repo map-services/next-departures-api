@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	_ "embed"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"strings"
@@ -116,7 +116,7 @@ func (repo *sqliteRepository) ImportCSV(updateInterval int) func(string, http.He
 		defer func() {
 			if err != nil {
 				if rbErr := tx.Rollback(); rbErr != nil {
-					log.Printf("error rolling back transaction: %v", rbErr)
+					slog.Error("error rolling back transaction", "error", rbErr)
 				}
 			}
 		}()
@@ -127,7 +127,7 @@ func (repo *sqliteRepository) ImportCSV(updateInterval int) func(string, http.He
 		}
 		defer func() {
 			if err := stmt.Close(); err != nil {
-				log.Printf("failed to close statement: %v", err)
+				slog.Error("failed to close statement", "error", err)
 			}
 		}()
 
@@ -137,19 +137,19 @@ func (repo *sqliteRepository) ImportCSV(updateInterval int) func(string, http.He
 		}
 		defer func() {
 			if err := reader.Close(); err != nil {
-				log.Printf("failed to close file reader: %v", err)
+				slog.Error("failed to close file reader", "error", err)
 			}
 		}()
 
 		count := 0
 		for result := range ParseCSV(reader, true, models.FromTuple) {
 			if result.Error != nil {
-				log.Printf("error parsing CSV record on line %d: %v", result.LineNum, result.Error)
+				slog.Error("error parsing CSV record", "line", result.LineNum, "error", result.Error)
 				continue
 			}
 			count++
 			if updateInterval > 0 && count%updateInterval == 0 {
-				log.Printf("Processed %d records", count)
+				slog.Info("Processed records", "count", count)
 			}
 
 			_, err = stmt.Exec(result.Value.ToTuple()...)
@@ -157,7 +157,7 @@ func (repo *sqliteRepository) ImportCSV(updateInterval int) func(string, http.He
 				return fmt.Errorf("failed to execute individual insert: %w", err)
 			}
 		}
-		log.Printf("Completed import: %d records processed", count)
+		slog.Info("Completed import", "processed_records", count)
 
 		if err = tx.Commit(); err != nil {
 			return fmt.Errorf("failed to commit transaction: %w", err)
@@ -180,7 +180,7 @@ func (repo *sqliteRepository) Search(boundingBox []float64) ([]models.SearchResu
 	}
 	defer func() {
 		if err := rows.Close(); err != nil {
-			log.Printf("error closing rows: %v", err)
+			slog.Error("failed to close rows", "error", err)
 		}
 	}()
 

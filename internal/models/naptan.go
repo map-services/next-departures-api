@@ -4,7 +4,8 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
-	"log"
+	"log/slog"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -302,6 +303,7 @@ var StopTypes []StopType
 func init() {
 	err := json.Unmarshal(stopTypesJSON, &StopTypes)
 	if err != nil {
-		log.Fatalf("failed to unmarshal stop types JSON: %v", err)
+		slog.Error("failed to unmarshal stop types JSON", "error", err)
+		os.Exit(1)
 	}
 }

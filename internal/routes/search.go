@@ -2,7 +2,7 @@ package routes
 
 import (
 	"fmt"
-	"log"
+	"log/slog"
 	"math"
 	"net/http"
 	"strconv"
@@ -27,14 +27,14 @@ func Search(repo internal.NaptanRepository) func(c *gin.Context) {
 		results, err := repo.Search(bbox)
 
 		if err != nil {
-			log.Printf("error while fetching next departures: %v", err)
+			slog.Error("error while fetching next departures", "error", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "An internal server error occurred"})
 			return
 		}
 
 		lastUpdated, err := repo.LastUpdated()
 		if err != nil {
-			log.Printf("error while fetching last updated time: %v", err)
+			slog.Error("error while fetching last updated time", "error", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "An internal server error occurred"})
 			return
 		}

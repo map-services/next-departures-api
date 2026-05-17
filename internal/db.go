@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	_ "embed"
 	"fmt"
-	"log"
+	"log/slog"
 	"strings"
 
 	"github.com/golang-migrate/migrate/v4"
@@ -15,8 +15,8 @@ import (
 
 type migrateLogger struct{}
 
-func (l *migrateLogger) Printf(format string, v ...interface{}) {
-	log.Printf("migration: "+format, v...)
+func (l *migrateLogger) Printf(format string, v ...any) {
+	slog.Info("migration: " + strings.TrimSpace(fmt.Sprintf(format, v...)))
 }
 
 func (l *migrateLogger) Verbose() bool {
@@ -31,7 +31,7 @@ func Migrate(migrationsPath, dbPath string) error {
 	m.Log = &migrateLogger{}
 	defer func() {
 		if sErr, dErr := m.Close(); sErr != nil || dErr != nil {
-			log.Printf("migration close error: source=%v, db=%v", sErr, dErr)
+			slog.Error("migration close error", "source", sErr, "db", dErr)
 		}
 	}()
 
@@ -60,6 +60,6 @@ func Connect(dbPath string) (*sql.DB, error) {
 	if err = db.Ping(); err != nil {
 		return nil, fmt.Errorf("failed to connect to database: %w", err)
 	}
-	log.Printf("connected to database: %s", dsn)
+	slog.Info("connected to database", "dsn", dsn)
 	return db, nil
 }
