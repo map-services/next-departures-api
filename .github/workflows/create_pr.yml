@@ -41,7 +41,7 @@ jobs:
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v8
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ steps.generate_token.outputs.token }}
           commit-message: "fix: automated code generation from Gemini for #${{ github.event.issue.number }}"
           title: "fix: ${{ github.event.issue.title }}"
           body: |
@@ -56,6 +56,7 @@ jobs:
 
             Closes #${{ github.event.issue.number }}
           branch: gemini/patch-issue-${{ github.event.issue.number }}
+          branch-suffix: short-commit-hash
           base: main
           labels: go,ai-generated
           sign-commits: true
