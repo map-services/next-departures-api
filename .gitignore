@@ -34,3 +34,9 @@ go.work.sum
 
 data/
 __debug_bin*
+
+# gemini-cli settings
+.gemini/
+
+# GitHub App credentials
+gha-creds-*.json
