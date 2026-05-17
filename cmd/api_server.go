@@ -2,7 +2,7 @@ package cmd
 
 import (
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 
@@ -12,6 +12,7 @@ import (
 	"github.com/gin-contrib/pprof"
 	"github.com/gin-gonic/gin"
 	"github.com/map-services/next-departures-api/internal"
+	"github.com/map-services/next-departures-api/internal/middleware"
 	"github.com/map-services/next-departures-api/internal/routes"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/prometheus/client_golang/prometheus"
@@ -29,7 +30,7 @@ func ApiServer(dbPath string, port int, debug bool) error {
 	}
 	defer func() {
 		if err := repo.Close(); err != nil {
-			log.Printf("failed to close repository: %v", err)
+			slog.Error("failed to close repository", "error", err)
 		}
 	}()
 
@@ -55,14 +56,14 @@ func ApiServer(dbPath string, port int, debug bool) error {
 
 	r.Use(
 		gin.Recovery(),
-		gin.LoggerWithWriter(gin.DefaultWriter, "/healthz", "/metrics"),
+		middleware.Logger(slog.Default(), "/metrics", "/healthz"),
 		prom.Instrument(),
 		compress.Compress(),
 		cors.Default(),
 	)
 
 	if debug {
-		log.Println("WARNING: pprof endpoints are enabled and exposed. Do not run with this flag in production.")
+		slog.Warn("pprof endpoints are enabled and exposed. Do not run with this flag in production.")
 		pprof.Register(r)
 	}
 
@@ -89,7 +90,7 @@ func ApiServer(dbPath string, port int, debug bool) error {
 	refdata.GET("/stop-types", routes.StopTypes)
 
 	addr := fmt.Sprintf(":%d", port)
-	log.Printf("Starting HTTP API Server on port %d...", port)
+	slog.Info("Starting HTTP API Server", "port", port)
 	if err := r.Run(addr); err != nil && err != http.ErrServerClosed {
 		return fmt.Errorf("HTTP API Server failed to start on port %d: %v", port, err)
 	}

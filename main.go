@@ -1,7 +1,8 @@
 package main
 
 import (
-	"log"
+	"log/slog"
+	"os"
 
 	"github.com/map-services/next-departures-api/cmd"
 
@@ -24,20 +25,23 @@ func main() {
 		Short: "Start HTTP API server",
 		Run: func(_ *cobra.Command, _ []string) {
 			if err = cmd.ApiServer(dbPath, port, debug); err != nil {
-				log.Fatalf("API Server failed: %v", err)
+				slog.Error("API Server failed", "error", err)
+				os.Exit(1)
 			}
 		},
-	}
+		}
 
-	importCmd := &cobra.Command{
+		importCmd := &cobra.Command{
 		Use:   "import [--db <path>]",
 		Short: "Perform one-off import of bus stops from the GOV.UK API",
 		Run: func(_ *cobra.Command, _ []string) {
 			if err := cmd.Import(dbPath); err != nil {
-				log.Fatalf("Import failed: %v", err)
+				slog.Error("Import failed", "error", err)
+				os.Exit(1)
 			}
 		},
-	}
+		}
+
 	apiServerCmd.Flags().IntVar(&port, "port", 8080, "Port to run HTTP server on")
 	apiServerCmd.Flags().BoolVar(&debug, "debug", false, "Enable debugging (pprof) - WARING: do not enable in production")
 
@@ -46,6 +50,7 @@ func main() {
 	rootCmd.PersistentFlags().StringVar(&dbPath, "db", "./data/next_departures.db", "Path to next-departures SQLite database")
 
 	if err = rootCmd.Execute(); err != nil {
-		log.Fatal(err)
+		slog.Error("root command execution failed", "error", err)
+		os.Exit(1)
 	}
 }

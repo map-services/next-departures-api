@@ -1,12 +1,12 @@
 package internal
-
 import (
 	"fmt"
 	"io"
-	"log"
+	"log/slog"
 	"net/http"
-	"net/url"
 	"os"
+
+	"net/url"
 	"strings"
 	"time"
 
@@ -38,7 +38,7 @@ func TransientDownload(uri string, handler func(tmpfile string, header http.Head
 		return handler(uri, http.Header{})
 	}
 
-	log.Printf("Retrieving: %s", uri)
+	slog.Info("Retrieving", "uri", uri)
 	req, err := http.NewRequest("GET", uri, nil)
 	if err != nil {
 		return fmt.Errorf("failed to create request: %w", err)
@@ -52,7 +52,7 @@ func TransientDownload(uri string, handler func(tmpfile string, header http.Head
 
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
-			log.Printf("failed to close body: %v", err)
+			slog.Error("failed to close body", "error", err)
 		}
 	}()
 
@@ -70,18 +70,18 @@ func TransientDownload(uri string, handler func(tmpfile string, header http.Head
 	if lastModified == "" {
 		lastModified = "unknown"
 	}
-	log.Printf("Remote last modified: %s", lastModified)
+	slog.Info("Remote last modified", "last_modified", lastModified)
 
 	filesize := "unknown size"
 	if resp.ContentLength >= 0 {
 		filesize = humanize.Bytes(uint64(resp.ContentLength))
 	}
-	log.Printf("Downloading content (%s) to %s", filesize, tmpfile)
+	slog.Info("Downloading content", "size", filesize, "to", tmpfile)
 
 	defer func() {
-		log.Printf("Removing temporary file: %s", tmpfile)
+		slog.Info("Removing temporary file", "path", tmpfile)
 		if err := os.Remove(tmpfile); err != nil {
-			log.Printf("failed to remove file %s: %v", tmpfile, err)
+			slog.Error("failed to remove file", "path", tmpfile, "error", err)
 		}
 	}()
 

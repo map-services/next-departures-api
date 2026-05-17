@@ -1,7 +1,7 @@
 package routes
 
 import (
-	"log"
+	"log/slog"
 	"net/http"
 	"strings"
 
@@ -21,7 +21,7 @@ func NextDepartures(siri internal.SiriClient, traveline internal.TravelineClient
 
 		siriResp, statusCode, err := siri.GetStopMonitoring(stopId)
 		if err != nil {
-			log.Printf("error while fetching next departures from SIRI: %v", err)
+			slog.Error("error while fetching next departures from SIRI", "error", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "An internal server error occurred"})
 			return
 		}
@@ -65,17 +65,17 @@ func NextDepartures(siri internal.SiriClient, traveline internal.TravelineClient
 				(statusCode == http.StatusForbidden && strings.Contains(errMsg, "Usage limits are exceeded"))
 
 			if isRateLimit {
-				log.Printf("SIRI rate limit exceeded, switching to Traveline fallback for stop %s", stopId)
+				slog.Info("SIRI rate limit exceeded, switching to Traveline fallback", "stopId", stopId)
 				fbManager.SetSiriRateLimited(true)
 				fetchFromTraveline(c, traveline, stopId)
 				return
 			}
 
-			log.Printf("unexpected HTTP status code (%d) from SIRI API: %s", statusCode, errMsg)
+			slog.Error("unexpected HTTP status code from SIRI API", "status", statusCode, "error", errMsg)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "An internal server error occurred"})
 
 		default:
-			log.Printf("unexpected HTTP status code (%d) from SIRI API", statusCode)
+			slog.Error("unexpected HTTP status code from SIRI API", "status", statusCode)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "An internal server error occurred"})
 		}
 	}
@@ -84,7 +84,7 @@ func NextDepartures(siri internal.SiriClient, traveline internal.TravelineClient
 func fetchFromTraveline(c *gin.Context, client internal.TravelineClient, stopId string) {
 	results, err := client.GetNextDepartures(stopId)
 	if err != nil {
-		log.Printf("error while fetching next departures from Traveline: %v", err)
+		slog.Error("error while fetching next departures from Traveline", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "An internal server error occurred"})
 		return
 	}
