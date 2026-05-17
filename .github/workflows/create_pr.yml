@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   create-pr:
-    if: contains(github.event.issue.body, '@gemini-cli')
+    if: contains(github.event.issue.body, '@gemini-pr-agent')
     runs-on: ubuntu-latest
     steps:
       - name: Generate token

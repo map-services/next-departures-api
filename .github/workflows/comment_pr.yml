@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   pr-update:
-    if: ${{ github.event.issue.pull_request && contains(github.event.comment.body, '@gemini-cli') }}
+    if: ${{ github.event.issue.pull_request && contains(github.event.comment.body, '@gemini-pr-agent') }}
     runs-on: ubuntu-latest
     steps:
       - name: Generate token
@@ -53,13 +53,13 @@ jobs:
 
       - name: Commit and Push Changes
         run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "gemini-pr-agent[bot]"
+          git config --global user.email "gemini-pr-agent[bot]@users.noreply.github.com"
 
           # Check if Gemini actually made any file changes
           if [ -n "$(git status --porcelain)" ]; then
             git add .
-            git commit -m "chore: iterative updates from Gemini based on PR comment"
+            git commit -m "chore: iterative updates from Gemini based on PR comment" -m "${{ steps.gemini_agent.outputs.summary }}"
             git push origin HEAD:${{ steps.pr_data.outputs.head_ref }}
           else
             echo "No changes detected from Gemini CLI."
