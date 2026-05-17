@@ -1,0 +1,57 @@
+name: Gemini PR Comment Collaborator
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  pr-update:
+    if: ${{ github.event.issue.pull_request && contains(github.event.comment.body, '@gemini-cli') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch PR Details
+        id: pr_data
+        run: |
+          PR_JSON=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            "${{ github.event.issue.pull_request.url }}")
+          HEAD_REF=$(echo "$PR_JSON" | jq -r '.head.ref')
+          echo "head_ref=$HEAD_REF" >> $GITHUB_OUTPUT
+
+      - name: Checkout PR Branch
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ steps.pr_data.outputs.head_ref }}
+          fetch-depth: 0
+
+      - name: Run Gemini CLI Iteration
+        uses: google-github-actions/run-gemini-cli@v0
+        env:
+          GEMINI_CLI_TRUST_WORKSPACE: true
+        with:
+          gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
+          gemini_model: gemini-3.1-flash-lite
+          prompt: |
+            You are helping iterate on an existing Pull Request.
+            The user has left a comment asking for changes.
+            Analyze the existing workspace and execute the requested changes.
+
+            User Request: ${{ github.event.comment.body }}
+
+      - name: Commit and Push Changes
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Check if Gemini actually made any file changes
+          if [ -n "$(git status --porcelain)" ]; then
+            git add .
+            git commit -m "chore: iterative updates from Gemini based on PR comment"
+            git push origin HEAD:${{ steps.pr_data.outputs.head_ref }}
+          else
+            echo "No changes detected from Gemini CLI."
+          fi
