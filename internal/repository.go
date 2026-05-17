@@ -144,12 +144,12 @@ func (repo *sqliteRepository) ImportCSV(updateInterval int) func(string, http.He
 		count := 0
 		for result := range ParseCSV(reader, true, models.FromTuple) {
 			if result.Error != nil {
-				log.Printf("error parsing CSV record: %v", result.Error)
+				log.Printf("error parsing CSV record on line %d: %v", result.LineNum, result.Error)
 				continue
 			}
 			count++
 			if updateInterval > 0 && count%updateInterval == 0 {
-				log.Printf("Processed %d records", result.LineNum)
+				log.Printf("Processed %d records", count)
 			}
 
 			_, err = stmt.Exec(result.Value.ToTuple()...)
@@ -179,7 +179,9 @@ func (repo *sqliteRepository) Search(boundingBox []float64) ([]models.SearchResu
 		return nil, fmt.Errorf("failed to execute search query: %w", err)
 	}
 	defer func() {
-		_ = rows.Close()
+		if err := rows.Close(); err != nil {
+			log.Printf("error closing rows: %v", err)
+		}
 	}()
 
 	var results []models.SearchResult
