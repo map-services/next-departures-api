@@ -1,6 +1,0 @@
-Warning: 256-color support not detected. Using a terminal with at least 256-color support is recommended for a better visual experience.
-YOLO mode is enabled. All tool calls will be automatically approved.
-YOLO mode is enabled. All tool calls will be automatically approved.
-Ripgrep is not available. Falling back to GrepTool.
-(node:2449) MaxListenersExceededWarning: Possible EventTarget memory leak detected. 11 abort listeners added to [AbortSignal]. MaxListeners is 10. Use events.setMaxListeners() to increase limit
-(Use `node --trace-warnings ...` to show where the warning was created)
