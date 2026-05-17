@@ -56,7 +56,7 @@ func ApiServer(dbPath string, port int, debug bool) error {
 
 	r.Use(
 		gin.Recovery(),
-		middleware.SlogMiddleware(slog.Default()),
+		middleware.Logger(slog.Default(), "/metrics", "/healthz"),
 		prom.Instrument(),
 		compress.Compress(),
 		cors.Default(),
