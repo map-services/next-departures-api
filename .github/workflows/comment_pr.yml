@@ -52,6 +52,9 @@ jobs:
             User Request: ${{ github.event.comment.body }}
 
       - name: Commit and Push Changes
+        env:
+          SUMMARY: ${{ steps.gemini_agent.outputs.summary }}
+          HEAD_REF: ${{ steps.pr_data.outputs.head_ref }}
         run: |
           git config --global user.name "gemini-pr-agent[bot]"
           git config --global user.email "gemini-pr-agent[bot]@users.noreply.github.com"
@@ -59,8 +62,19 @@ jobs:
           # Check if Gemini actually made any file changes
           if [ -n "$(git status --porcelain)" ]; then
             git add .
-            git commit -m "chore: iterative updates from Gemini based on PR comment" -m "${{ steps.gemini_agent.outputs.summary }}"
-            git push origin HEAD:${{ steps.pr_data.outputs.head_ref }}
+            git commit -m "chore: iterative updates from Gemini based on PR comment" -m "$SUMMARY"
+            git push origin "HEAD:$HEAD_REF"
           else
             echo "No changes detected from Gemini CLI."
           fi
+
+      - name: Comment on PR with Summary
+        env:
+          SUMMARY: ${{ steps.gemini_agent.outputs.summary }}
+        run: |
+          COMMENT_BODY=$(jq -n --arg body "$SUMMARY" '{"body": $body}')
+          curl -s -X POST \
+            -H "Authorization: token ${{ steps.generate_token.outputs.token }}" \
+            -H "Content-Type: application/json" \
+            -d "$COMMENT_BODY" \
+            "${{ github.event.issue.comments_url }}"
