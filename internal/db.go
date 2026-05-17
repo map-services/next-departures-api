@@ -15,7 +15,7 @@ import (
 
 type migrateLogger struct{}
 
-func (l *migrateLogger) Printf(format string, v ...interface{}) {
+func (l *migrateLogger) Printf(format string, v ...any) {
 	slog.Info("migration: "+fmt.Sprintf(format, v...))
 }
 
