@@ -115,15 +115,14 @@ func (repo *sqliteRepository) ImportCSV(ctx context.Context, updateInterval int)
 			return fmt.Errorf("failed to begin transaction: %w", err)
 		}
 
-		rollback := func() {
-			if rbErr := tx.Rollback(); rbErr != nil {
+		defer func() {
+			if rbErr := tx.Rollback(); rbErr != nil && rbErr != sql.ErrTxDone {
 				slog.Error("error rolling back transaction", "error", rbErr)
 			}
-		}
+		}()
 
 		stmt, err := tx.PrepareContext(ctx, insertNaptanSQL)
 		if err != nil {
-			rollback()
 			return fmt.Errorf("failed to prepare statement: %w", err)
 		}
 		defer func() {
@@ -134,7 +133,6 @@ func (repo *sqliteRepository) ImportCSV(ctx context.Context, updateInterval int)
 
 		reader, err := os.Open(tmpfile)
 		if err != nil {
-			rollback()
 			return fmt.Errorf("error opening file: %v", err)
 		}
 		defer func() {
@@ -156,14 +154,12 @@ func (repo *sqliteRepository) ImportCSV(ctx context.Context, updateInterval int)
 
 			_, err = stmt.ExecContext(ctx, result.Value.ToTuple()...)
 			if err != nil {
-				rollback()
 				return fmt.Errorf("failed to execute individual insert: %w", err)
 			}
 		}
 		slog.Info("Completed import", "processed_records", count)
 
 		if err = tx.Commit(); err != nil {
-			rollback()
 			return fmt.Errorf("failed to commit transaction: %w", err)
 		}
 
