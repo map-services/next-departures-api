@@ -2,7 +2,7 @@ package cmd
 
 import (
 	"fmt"
-	"log"
+	"log/slog"
 
 	"github.com/map-services/next-departures-api/internal"
 	"github.com/map-services/next-departures-api/internal/models"
@@ -16,10 +16,9 @@ func Import(dbPath string) error {
 	}
 	defer func() {
 		if err := repo.Close(); err != nil {
-			log.Printf("failed to close repository: %v", err)
+			slog.Error("failed to close repository", "error", err)
 		}
 	}()
-
 	err = internal.TransientDownload(models.NAPTAN_CSV_URL, repo.ImportCSV(421))
 	if err != nil {
 		return fmt.Errorf("failed to download NaPTAN dataset: %w", err)

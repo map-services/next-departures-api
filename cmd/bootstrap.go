@@ -2,7 +2,7 @@ package cmd
 
 import (
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 	"time"
 
@@ -18,7 +18,7 @@ import (
 // commands. It returns the repository, and an error if something failed during startup.
 func bootstrap(dbPath string, debug bool) (internal.NaptanRepository, error) {
 	if err := godotenv.Load(); err != nil {
-		log.Println("No .env file found")
+		slog.Info("No .env file found")
 	}
 
 	environment := "development"
