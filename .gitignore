@@ -37,6 +37,7 @@ __debug_bin*
 
 # gemini-cli settings
 .gemini/
+gemini-artifacts/
 
 # GitHub App credentials
 gha-creds-*.json
