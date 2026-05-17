@@ -37,9 +37,8 @@ func bootstrap(dbPath string, debug bool) (internal.NaptanRepository, error) {
 	}
 	defer sentry.Flush(2 * time.Second)
 
-	godx.GitVersion()
-	godx.EnvironmentVars()
-	godx.UserInfo()
+	logger := setupLogger("info")
+	godx.Diagnostics(logger)
 
 	db, err := internal.Connect(dbPath)
 	if err != nil {
@@ -54,4 +53,25 @@ func bootstrap(dbPath string, debug bool) (internal.NaptanRepository, error) {
 	repo := internal.NewNaptanRepository(db)
 
 	return repo, nil
+}
+
+func setupLogger(level string) *slog.Logger {
+	var programLevel = new(slog.LevelVar)
+	switch level {
+	case "debug":
+		programLevel.Set(slog.LevelDebug)
+	case "warn":
+		programLevel.Set(slog.LevelWarn)
+	case "error":
+		programLevel.Set(slog.LevelError)
+	default:
+		programLevel.Set(slog.LevelInfo)
+	}
+
+	handler := slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{
+		Level: programLevel,
+	})
+	logger := slog.New(handler)
+	slog.SetDefault(logger)
+	return logger
 }

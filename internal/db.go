@@ -16,7 +16,7 @@ import (
 type migrateLogger struct{}
 
 func (l *migrateLogger) Printf(format string, v ...any) {
-	slog.Info("migration: "+fmt.Sprintf(format, v...))
+	slog.Info("migration: " + strings.TrimSpace(fmt.Sprintf(format, v...)))
 }
 
 func (l *migrateLogger) Verbose() bool {
