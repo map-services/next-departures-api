@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"context"
 	"database/sql"
 	"testing"
 	"time"
@@ -27,7 +28,7 @@ func TestLastUpdated_ParsesStringAggregate(t *testing.T) {
 	}
 
 	repo := NewNaptanRepository(db)
-	lastUpdated, err := repo.LastUpdated()
+	lastUpdated, err := repo.LastUpdated(context.Background())
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -64,7 +65,7 @@ func TestLastUpdated_ParsesSpaceSeparatedOffsetTimestamp(t *testing.T) {
 	}
 
 	repo := NewNaptanRepository(db)
-	lastUpdated, err := repo.LastUpdated()
+	lastUpdated, err := repo.LastUpdated(context.Background())
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -95,7 +96,7 @@ func TestLastUpdated_ReturnsNilWhenNoRows(t *testing.T) {
 	}
 
 	repo := NewNaptanRepository(db)
-	lastUpdated, err := repo.LastUpdated()
+	lastUpdated, err := repo.LastUpdated(context.Background())
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

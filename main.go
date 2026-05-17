@@ -29,9 +29,9 @@ func main() {
 				os.Exit(1)
 			}
 		},
-		}
+	}
 
-		importCmd := &cobra.Command{
+	importCmd := &cobra.Command{
 		Use:   "import [--db <path>]",
 		Short: "Perform one-off import of bus stops from the GOV.UK API",
 		Run: func(_ *cobra.Command, _ []string) {
@@ -40,7 +40,7 @@ func main() {
 				os.Exit(1)
 			}
 		},
-		}
+	}
 
 	apiServerCmd.Flags().IntVar(&port, "port", 8080, "Port to run HTTP server on")
 	apiServerCmd.Flags().BoolVar(&debug, "debug", false, "Enable debugging (pprof) - WARING: do not enable in production")

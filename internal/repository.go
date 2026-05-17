@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"context"
 	"database/sql"
 	_ "embed"
 	"fmt"
@@ -27,9 +28,9 @@ var searchNaptanSQL string
 var lastUpdatedSQL string
 
 type NaptanRepository interface {
-	ImportCSV(updateInterval int) func(string, http.Header) error
-	Search(boundingBox []float64) ([]models.SearchResult, error)
-	LastUpdated() (*time.Time, error)
+	ImportCSV(ctx context.Context, updateInterval int) func(string, http.Header) error
+	Search(ctx context.Context, boundingBox []float64) ([]models.SearchResult, error)
+	LastUpdated(ctx context.Context) (*time.Time, error)
 	Close() error
 	Check() checks.Check
 }
@@ -56,13 +57,13 @@ func (repo *sqliteRepository) Check() checks.Check {
 	return checks.SqlCheck{Sql: repo.db}
 }
 
-func (repo *sqliteRepository) LastUpdated() (*time.Time, error) {
+func (repo *sqliteRepository) LastUpdated(ctx context.Context) (*time.Time, error) {
 	result, err, _ := memoize.Call(repo.cache, "last_updated", func() (*time.Time, error) {
 
 		defer repo.metrics.Record(time.Now(), "lastUpdated")
 
 		var lastUpdated sql.NullString
-		err := repo.db.QueryRow(lastUpdatedSQL).Scan(&lastUpdated)
+		err := repo.db.QueryRowContext(ctx, lastUpdatedSQL).Scan(&lastUpdated)
 		if err != nil {
 			return nil, fmt.Errorf("failed to execute last updated query: %w", err)
 		}
@@ -105,23 +106,22 @@ func parseTimeString(value string) (*time.Time, error) {
 	return nil, fmt.Errorf("unsupported time format: %s", value)
 }
 
-func (repo *sqliteRepository) ImportCSV(updateInterval int) func(string, http.Header) error {
+func (repo *sqliteRepository) ImportCSV(ctx context.Context, updateInterval int) func(string, http.Header) error {
 	return func(tmpfile string, header http.Header) error {
 		defer repo.metrics.Record(time.Now(), "importCSV")
 
-		tx, err := repo.db.Begin()
+		tx, err := repo.db.BeginTx(ctx, nil)
 		if err != nil {
 			return fmt.Errorf("failed to begin transaction: %w", err)
 		}
+
 		defer func() {
-			if err != nil {
-				if rbErr := tx.Rollback(); rbErr != nil {
-					slog.Error("error rolling back transaction", "error", rbErr)
-				}
+			if rbErr := tx.Rollback(); rbErr != nil && rbErr != sql.ErrTxDone {
+				slog.Error("error rolling back transaction", "error", rbErr)
 			}
 		}()
 
-		stmt, err := tx.Prepare(insertNaptanSQL)
+		stmt, err := tx.PrepareContext(ctx, insertNaptanSQL)
 		if err != nil {
 			return fmt.Errorf("failed to prepare statement: %w", err)
 		}
@@ -144,15 +144,15 @@ func (repo *sqliteRepository) ImportCSV(updateInterval int) func(string, http.He
 		count := 0
 		for result := range ParseCSV(reader, true, models.FromTuple) {
 			if result.Error != nil {
-				slog.Error("error parsing CSV record", "error", result.Error)
+				slog.Error("error parsing CSV record", "line", result.LineNum, "error", result.Error)
 				continue
 			}
 			count++
 			if updateInterval > 0 && count%updateInterval == 0 {
-				slog.Info("Processed records", "count", count, "line", result.LineNum)
+				slog.Info("Processed records", "count", count)
 			}
 
-			_, err = stmt.Exec(result.Value.ToTuple()...)
+			_, err = stmt.ExecContext(ctx, result.Value.ToTuple()...)
 			if err != nil {
 				return fmt.Errorf("failed to execute individual insert: %w", err)
 			}
@@ -167,19 +167,21 @@ func (repo *sqliteRepository) ImportCSV(updateInterval int) func(string, http.He
 	}
 }
 
-func (repo *sqliteRepository) Search(boundingBox []float64) ([]models.SearchResult, error) {
+func (repo *sqliteRepository) Search(ctx context.Context, boundingBox []float64) ([]models.SearchResult, error) {
 	defer repo.metrics.Record(time.Now(), "search")
 
 	if len(boundingBox) != 4 {
 		return nil, fmt.Errorf("boundingBox must have 4 elements: min_lat, max_lat, min_lng, max_lng")
 	}
 
-	rows, err := repo.db.Query(searchNaptanSQL, boundingBox[1], boundingBox[3], boundingBox[0], boundingBox[2])
+	rows, err := repo.db.QueryContext(ctx, searchNaptanSQL, boundingBox[1], boundingBox[3], boundingBox[0], boundingBox[2])
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute search query: %w", err)
 	}
 	defer func() {
-		_ = rows.Close()
+		if err := rows.Close(); err != nil {
+			slog.Error("failed to close rows", "error", err)
+		}
 	}()
 
 	var results []models.SearchResult
