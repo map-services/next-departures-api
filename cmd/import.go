@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 
@@ -19,7 +20,8 @@ func Import(dbPath string) error {
 			slog.Error("failed to close repository", "error", err)
 		}
 	}()
-	err = internal.TransientDownload(models.NAPTAN_CSV_URL, repo.ImportCSV(421))
+
+	err = internal.TransientDownload(models.NAPTAN_CSV_URL, repo.ImportCSV(context.Background(), 421))
 	if err != nil {
 		return fmt.Errorf("failed to download NaPTAN dataset: %w", err)
 	}
