@@ -14,10 +14,17 @@ jobs:
     if: ${{ github.event.issue.pull_request && contains(github.event.comment.body, '@gemini-cli') }}
     runs-on: ubuntu-latest
     steps:
+      - name: Generate token
+        id: generate_token
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.GEMINI_PR_AGENT_CLIENT_ID }}
+          private-key: ${{ secrets.GEMINI_PR_AGENT_PRIVATE_KEY }}
+
       - name: Fetch PR Details
         id: pr_data
         run: |
-          PR_JSON=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+          PR_JSON=$(curl -s -H "Authorization: token ${{ steps.generate_token.outputs.token }}" \
             "${{ github.event.issue.pull_request.url }}")
           HEAD_REF=$(echo "$PR_JSON" | jq -r '.head.ref')
           echo "head_ref=$HEAD_REF" >> $GITHUB_OUTPUT
@@ -25,10 +32,12 @@ jobs:
       - name: Checkout PR Branch
         uses: actions/checkout@v6
         with:
+          token: ${{ steps.generate_token.outputs.token }}
           ref: ${{ steps.pr_data.outputs.head_ref }}
           fetch-depth: 0
 
       - name: Run Gemini CLI Iteration
+        id: gemini_agent
         uses: google-github-actions/run-gemini-cli@v0
         env:
           GEMINI_CLI_TRUST_WORKSPACE: true
