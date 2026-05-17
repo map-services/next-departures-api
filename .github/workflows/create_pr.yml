@@ -22,7 +22,7 @@ jobs:
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         with:
-          command: |
+          prompt: |
             Fix the following issue by modifying or adding files in the workspace.
             Issue Title: ${{ github.event.issue.title }}
             Issue Body: ${{ github.event.issue.body }}
