@@ -8,11 +8,13 @@ import (
 )
 
 const CRON_SCHEDULE_NAPTAN = "@every 19h"
-const CRON_SCHEDULE_MIDNIGHT = "0 0 * * *"
+const CRON_SCHEDULE_RATE_LIMIT_RESET = "0 0 * * *"
 
 func StartCron(repo NaptanRepository, fbManager FallbackManager) (*cron.Cron, error) {
 
-	slog.Info("Starting CRON jobs", "naptan_schedule", CRON_SCHEDULE_NAPTAN, "fallback_schedule", CRON_SCHEDULE_MIDNIGHT)
+	slog.Info("Starting CRON jobs", 
+			  "naptan_schedule", CRON_SCHEDULE_NAPTAN, 
+			  "rate_limit_reset_schedule", CRON_SCHEDULE_RATE_LIMIT_RESET)
 
 	c := cron.New()
 	if _, err := c.AddFunc(CRON_SCHEDULE_NAPTAN, func() {
@@ -24,7 +26,7 @@ func StartCron(repo NaptanRepository, fbManager FallbackManager) (*cron.Cron, er
 		return nil, err
 	}
 
-	if _, err := c.AddFunc(CRON_SCHEDULE_MIDNIGHT, func() {
+	if _, err := c.AddFunc(CRON_SCHEDULE_RATE_LIMIT_RESET, func() {
 		slog.Info("Resetting SIRI rate limit fallback flag")
 		fbManager.SetSiriRateLimited(false)
 	}); err != nil {
