@@ -30,7 +30,6 @@ func bootstrap(dbPath string, debug bool) (internal.NaptanRepository, error) {
 		Debug:       debug,
 		Release:     versioninfo.Revision[:7],
 		Environment: environment,
-		EnableLogs:  true,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("sentry initialization failed: %w", err)
