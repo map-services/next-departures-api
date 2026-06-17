@@ -5,7 +5,7 @@ go 1.26
 require (
 	github.com/PuerkitoBio/goquery v1.12.0
 	github.com/earthboundkid/versioninfo/v2 v2.24.1
-	github.com/getsentry/sentry-go v0.46.2
+	github.com/getsentry/sentry-go v0.47.0
 	github.com/gin-gonic/gin v1.12.0
 	github.com/golang-migrate/migrate/v4 v4.19.1
 	github.com/joho/godotenv v1.5.1
