@@ -9,7 +9,7 @@ require (
 	github.com/gin-gonic/gin v1.12.0
 	github.com/golang-migrate/migrate/v4 v4.19.1
 	github.com/joho/godotenv v1.5.1
-	github.com/mattn/go-sqlite3 v1.14.49
+	github.com/mattn/go-sqlite3 v1.14.50
 	github.com/prometheus/client_golang v1.24.1
 	github.com/stretchr/testify v1.12.0
 )
