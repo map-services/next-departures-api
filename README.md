@@ -13,7 +13,7 @@ A REST API for UK bus stop information and real-time next departures.
 
 ## Prerequisites
 
-- Go 1.26 or higher
+- Go 1.27 or higher
 - SQLite3
 - TransportAPI credentials (for real-time departures)
 
@@ -28,6 +28,7 @@ cp .env.example .env
 ```
 
 Required environment variables:
+
 - `TRANSPORTAPI_APP_ID`: Your TransportAPI Application ID.
 - `TRANSPORTAPI_APP_KEY`: Your TransportAPI Application Key.
 - `ENVIRONMENT`: Set to `development` or `production`.
@@ -55,28 +56,35 @@ The server will start on port `8080` by default.
 ## API Usage
 
 ### Search for stops by bounding box
+
 Returns NaPTAN stops within the specified coordinates.
+
 ```http
 GET /v1/next-departures/search?bbox=-1.565,53.961,-1.503,53.983
 ```
 
 ### Get next departures for a stop
+
 Fetches real-time departures for the given NaPTAN stop ID.
+
 ```http
 GET /v1/next-departures/490000235Z
 ```
 
 ### Reference Data: Stop Types
+
 ```http
 GET /v1/next-departures/refdata/stop-types
 ```
 
 ### Health Check
+
 ```http
 GET /healthz
 ```
 
 ### Metrics
+
 ```http
 GET /metrics
 ```
@@ -86,24 +94,26 @@ GET /metrics
 The application provides a few CLI commands:
 
 - `api-server`: Starts the HTTP API server.
-  - `--port`: Port to run on (default: 8080)
-  - `--db`: Path to SQLite database (default: ./data/next_departures.db)
-  - `--debug`: Enable pprof endpoints (warning: not for production)
+    - `--port`: Port to run on (default: 8080)
+    - `--db`: Path to SQLite database (default: ./data/next_departures.db)
+    - `--debug`: Enable pprof endpoints (warning: not for production)
 - `import`: Performs a one-off import of bus stops from GOV.UK.
-  - `--db`: Path to SQLite database.
+    - `--db`: Path to SQLite database.
 
 ## Development
 
 ### Running Tests
+
 ```bash
 go test ./...
 ```
 
 ### Debugging
+
 You can enable profiling endpoints by passing the `--debug` flag to the `api-server` command.
 
 ## References
 
-* NaPTAN XML Schema: http://naptan.dft.gov.uk/naptan/schema/2.5/napt/NaPT_stop-v2-5.xsd
-* NaPTAN Schema Guide (PDF): https://naptan.dft.gov.uk/naptan/schema/2.4/doc/NaPTANSchemaGuide-2.4-v0.57.pdf
-* NaPTAN Guide for Data Managers on GOV.UK: https://www.gov.uk/government/publications/national-public-transport-access-node-schema/naptan-guide-for-data-managers
+- NaPTAN XML Schema: http://naptan.dft.gov.uk/naptan/schema/2.5/napt/NaPT_stop-v2-5.xsd
+- NaPTAN Schema Guide (PDF): https://naptan.dft.gov.uk/naptan/schema/2.4/doc/NaPTANSchemaGuide-2.4-v0.57.pdf
+- NaPTAN Guide for Data Managers on GOV.UK: https://www.gov.uk/government/publications/national-public-transport-access-node-schema/naptan-guide-for-data-managers

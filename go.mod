@@ -1,6 +1,6 @@
 module github.com/map-services/next-departures-api
 
-go 1.26
+go 1.27
 
 require (
 	github.com/PuerkitoBio/goquery v1.12.0
